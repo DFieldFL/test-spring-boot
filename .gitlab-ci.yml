@@ -1,0 +1,40 @@
+image: gradle:6.2-jdk8
+
+variables:
+  NAMESPACE: hello-world
+
+stages:
+  - build
+  - test
+  - deploy
+
+before_script:
+  - export GRADLE_USER_HOME=`pwd`/.gradle
+
+build:
+  stage: build
+  script:
+    - ./gradlew build
+
+test:
+  stage: test
+  script:
+    - ./gradlew test
+
+deploy:
+  stage: deploy
+  image: dtzar/helm-kubectl
+  environment:
+    name: dev
+  script:
+    - echo CI_PROJECT_ID=$CI_PROJECT_ID
+    - echo KUBE_URL=$KUBE_URL
+    - echo KUBE_CA_PEM_FILE=$KUBE_CA_PEM_FILE
+    - echo KUBE_TOKEN=$KUBE_TOKEN
+    - echo KUBE_NAMESPACE=$KUBE_NAMESPACE
+    - kubectl config set-cluster "$NAMESPACE" --server="$KUBE_URL" --certificate-authority="$KUBE_CA_PEM_FILE"
+    - kubectl config set-credentials "$NAMESPACE" --token="$KUBE_TOKEN"
+    - kubectl config set-context "$NAMESPACE" --cluster="$NAMESPACE" --user="$NAMESPACE" --namespace="$KUBE_NAMESPACE"
+    - kubectl config use-context "$NAMESPACE"
+    - kubectl apply -f deployment.yml
+    - kubectl rollout status -f deployment.yml

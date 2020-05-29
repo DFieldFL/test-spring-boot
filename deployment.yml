@@ -1,0 +1,41 @@
+#kind: Service
+#apiVersion: v1
+#metadata:
+#  name: test-spring-boot
+#spec:
+#  selector:
+#    app: test-spring-boot
+#  ports:
+#    - protocol: TCP
+#      port: 8085
+#      targetPort: 8085
+#---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-boot-web-deployment
+  labels:
+    app: test-spring-boot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: test-spring-boot
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 50%
+  template:
+    metadata:
+      labels:
+        app: test-spring-boot
+    spec:
+      containers:
+        - name: web
+          image: dfieldfl/test-spring-boot
+          ports:
+            - name: web
+              containerPort: 8085
+              protocol: TCP
+
