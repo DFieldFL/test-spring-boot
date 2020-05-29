@@ -1,18 +1,24 @@
 image: gradle:6.2-jdk8
 
 variables:
-  NAMESPACE: hello-world
+  REPO_NAME: ${CI_REGISTRY}/${CI_PROJECT_PATH}
+  CONTAINER_IMAGE: ${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_BUILD_REF_NAME}_${CI_BUILD_REF}
+  CONTAINER_IMAGE_LATEST: ${CI_REGISTRY}/${CI_PROJECT_PATH}:latest
 
 stages:
   - build
   - test
-  - deploy
+  - build_image
+#  - deploy
 
 before_script:
   - export GRADLE_USER_HOME=`pwd`/.gradle
 
 build:
   stage: build
+  artifacts:
+    paths:
+      - build/libs/
   script:
     - ./gradlew build
 
@@ -21,20 +27,31 @@ test:
   script:
     - ./gradlew test
 
-deploy:
-  stage: deploy
-  image: dtzar/helm-kubectl
-  environment:
-    name: dev
+build_image:
+  stage: build_image
+  image: docker:19
+  before_script:
+    - echo ${CONTAINER_IMAGE}
+    - echo -n $DOCKER_HUB_TOKEN | docker login -u dfieldfl --password-stdin
   script:
-    - echo CI_PROJECT_ID=$CI_PROJECT_ID
-    - echo KUBE_URL=$KUBE_URL
-    - echo KUBE_CA_PEM_FILE=$KUBE_CA_PEM_FILE
-    - echo KUBE_TOKEN=$KUBE_TOKEN
-    - echo KUBE_NAMESPACE=$KUBE_NAMESPACE
-    - kubectl config set-cluster "$NAMESPACE" --server="$KUBE_URL" --certificate-authority="$KUBE_CA_PEM_FILE"
-    - kubectl config set-credentials "$NAMESPACE" --token="$KUBE_TOKEN"
-    - kubectl config set-context "$NAMESPACE" --cluster="$NAMESPACE" --user="$NAMESPACE" --namespace="$KUBE_NAMESPACE"
-    - kubectl config use-context "$NAMESPACE"
-    - kubectl apply -f deployment.yml
-    - kubectl rollout status -f deployment.yml
+    - docker build -t hello-world .
+    - docker push hello-world
+
+#deploy:
+#  stage: deploy
+#  image: dtzar/helm-kubectl
+#  environment:
+#    name: dev
+#  script:
+#    - echo CI_PROJECT_ID=$CI_PROJECT_ID
+#    - echo KUBE_URL=$KUBE_URL
+#    - echo KUBE_CA_PEM_FILE=$KUBE_CA_PEM_FILE
+#    - echo KUBE_TOKEN=$KUBE_TOKEN
+#    - echo KUBE_NAMESPACE=$KUBE_NAMESPACE
+#    - kubectl config set-cluster "$CI_PROJECT_ID" --server="$KUBE_URL" --certificate-authority="$KUBE_CA_PEM_FILE"
+#    - kubectl config set-credentials "$CI_PROJECT_ID" --token="$KUBE_TOKEN"
+#    - kubectl config set-context "$CI_PROJECT_ID" --cluster="$CI_PROJECT_ID" --user="$CI_PROJECT_ID" --namespace="$KUBE_NAMESPACE"
+#    - kubectl config use-context "$CI_PROJECT_ID"
+#    - kubectl get deployments
+#    - kubectl apply -f deployment.yml
+#    - kubectl rollout status -f deployment.yml
