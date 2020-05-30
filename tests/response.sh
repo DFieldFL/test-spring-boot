@@ -4,5 +4,5 @@ if [ "$response" = "Hello world." ]; then
 	echo "success"
 	exit 0
 fi;
-echo "failed"
+echo "failed with response body of: $response"
 exit 1

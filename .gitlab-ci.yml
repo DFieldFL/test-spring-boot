@@ -5,66 +5,74 @@ variables:
   CONTAINER_IMAGE_LATEST: dfieldfl/${CI_PROJECT_NAME}:latest
 
 stages:
-#  - build
-#  - test
-#  - build_image
+  - build
+  - test
+  - build_image
   - test_image
-#  - deploy
+  - release_image
+  - deploy
 
 before_script:
   - export GRADLE_USER_HOME=`pwd`/.gradle
 
-#build:
-#  stage: build
-#  artifacts:
-#    paths:
-#      - build/libs/
-#  script:
-#    - ./gradlew build
-#
-#test:
-#  stage: test
-#  script:
-#    - ./gradlew test
-#
-#build_image:
-#  stage: build_image
-#  image: docker:19
-#  before_script:
-#    - echo ${CONTAINER_IMAGE}
-#    - echo -n $DOCKER_HUB_TOKEN | docker login -u dfieldfl --password-stdin
-#  script:
-#    - docker build -t ${CONTAINER_IMAGE} .
-#    - docker push ${CONTAINER_IMAGE}
+build:
+  stage: build
+  artifacts:
+    paths:
+      - build/libs/
+  script:
+    - ./gradlew build
+
+test:
+  stage: test
+  script:
+    - ./gradlew test
+
+build_image:
+  stage: build_image
+  image: docker:19
+  before_script:
+    - echo ${CONTAINER_IMAGE}
+    - echo -n $DOCKER_HUB_TOKEN | docker login -u dfieldfl --password-stdin
+  script:
+    - docker build -t ${CONTAINER_IMAGE} .
+    - docker push ${CONTAINER_IMAGE}
 
 test_image:
   stage: test_image
   image: curlimages/curl:latest
   services:
-    - name: dfieldfl/test-spring-boot:master_b59f5e6913cde0b9fa71b6bafbb1569403b89ec9
+    - name: ${CONTAINER_IMAGE}
       alias: hello-world
   script:
-    - ls -al
-    - pwd
-    - cat ./tests/response.sh
     - ./tests/response.sh
 
+release_image:
+  stage: release_image
+  image: docker:19
+  before_script:
+    - echo "Tagging image ${CONTAINER_IMAGE} as latest ${CONTAINER_IMAGE_LATEST}"
+    - echo -n $DOCKER_HUB_TOKEN | docker login -u dfieldfl --password-stdin
+  script:
+    - docker pull ${CONTAINER_IMAGE}
+    - docker image tag ${CONTAINER_IMAGE} ${CONTAINER_IMAGE_LATEST}
+    - docker push ${CONTAINER_IMAGE_LATEST}
 
-#deploy:
-#  stage: deploy
-#  image: dtzar/helm-kubectl
-#  environment:
-#    name: dev
-#  script:
-#    - echo CI_PROJECT_ID=$CI_PROJECT_ID
-#    - echo KUBE_URL=$KUBE_URL
-#    - echo KUBE_CA_PEM_FILE=$KUBE_CA_PEM_FILE
-#    - echo KUBE_TOKEN=$KUBE_TOKEN
-#    - echo KUBE_NAMESPACE=$KUBE_NAMESPACE
-#    - kubectl config set-cluster "$CI_PROJECT_ID" --server="$KUBE_URL" --certificate-authority="$KUBE_CA_PEM_FILE"
-#    - kubectl config set-credentials "$CI_PROJECT_ID" --token="$KUBE_TOKEN"
-#    - kubectl config set-context "$CI_PROJECT_ID" --cluster="$CI_PROJECT_ID" --user="$CI_PROJECT_ID" --namespace="$KUBE_NAMESPACE"
-#    - kubectl config use-context "$CI_PROJECT_ID"
-#    - kubectl get deployments
-#    - kubectl apply -f deployment.yml
-#    - kubectl rollout status -f deployment.yml
+deploy:
+  stage: deploy
+  image: dtzar/helm-kubectl
+  environment:
+    name: dev
+  script:
+    - echo CI_PROJECT_ID=$CI_PROJECT_ID
+    - echo KUBE_URL=$KUBE_URL
+    - echo KUBE_CA_PEM_FILE=$KUBE_CA_PEM_FILE
+    - echo KUBE_TOKEN=$KUBE_TOKEN
+    - echo KUBE_NAMESPACE=$KUBE_NAMESPACE
+    - kubectl config set-cluster "$CI_PROJECT_ID" --server="$KUBE_URL" --certificate-authority="$KUBE_CA_PEM_FILE"
+    - kubectl config set-credentials "$CI_PROJECT_ID" --token="$KUBE_TOKEN"
+    - kubectl config set-context "$CI_PROJECT_ID" --cluster="$CI_PROJECT_ID" --user="$CI_PROJECT_ID" --namespace="$KUBE_NAMESPACE"
+    - kubectl config use-context "$CI_PROJECT_ID"
+    - kubectl get deployments
+    - kubectl apply -f deployment.yml
+    - kubectl rollout status -f deployment.yml

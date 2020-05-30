@@ -33,9 +33,9 @@ spec:
     spec:
       containers:
         - name: web
-          image: dfieldfl/test-spring-boot
+          image: dfieldfl/test-spring-boot:latest
           ports:
             - name: web
-              containerPort: 8085
+              containerPort: 8080
               protocol: TCP
 
